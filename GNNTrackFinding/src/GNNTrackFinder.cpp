@@ -152,16 +152,8 @@ namespace {
 
   // Deduplicate track candidates across segments, handling overlap.
   // Simple overlap handling: Only remove containment tracks, strong duplicates
-  std::vector<std::vector<int>> dedupTrackCandidates(
-      const std::vector<std::vector<std::vector<int>>>& trackCandIdcs_allSegments, double sharedFractionCut) {
-    // Flatten candidates into single list
-    std::vector<std::vector<int>> allCands;
-    allCands.reserve(1024);
-    for (const auto& seg : trackCandIdcs_allSegments) {
-      for (const auto& c : seg)
-        allCands.push_back(c);
-    }
-
+  std::vector<std::vector<int>> dedupTrackCandidates(const std::vector<std::vector<int>>& allCands,
+                                                     double                               sharedFractionCut) {
     const int n_cands = static_cast<int>(allCands.size());
     if (n_cands == 0)
       return {};
@@ -525,9 +517,20 @@ edm4hep::TrackCollection GNNTrackFinder::operator()(
     trackCandIdcs_allSegments.push_back(trackCandIdcs);
   }
 
+  // Flatten candidates into single list
+  std::vector<std::vector<int>> trackCandIdcs;
+  trackCandIdcs.reserve(1024);
+  for (const auto& seg : trackCandIdcs_allSegments) {
+    for (const auto& c : seg)
+      trackCandIdcs.push_back(c);
+  }
+
   // Deduplicate track candidates across segments, handling overlap
-  const std::vector<std::vector<int>> trackCandIdcs =
-      dedupTrackCandidates(trackCandIdcs_allSegments, m_sharedFractionCut.value());
+  // if cut is set and there are overlapping segments
+  if (m_sharedFractionCut.value() > 0.0 && m_thetaBins.value() * m_phiBins.value() > 1 &&
+      m_thetaOverlap.value() + m_phiOverlap.value() > 0.0) {
+    trackCandIdcs = dedupTrackCandidates(trackCandIdcs, m_sharedFractionCut.value());
+  }
 
   // Default-construct ACTS contexts
   const Acts::GeometryContext      geoCtx = Acts::GeometryContext::dangerouslyDefaultConstruct();
